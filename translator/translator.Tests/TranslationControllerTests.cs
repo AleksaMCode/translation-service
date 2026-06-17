@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using translator.Configuration;
 using translator.Contracts;
-using translator.Controllers;
+using translator.Controllers.V1;
 using translator.Services;
 
 namespace translator.Tests;
@@ -97,6 +97,7 @@ public sealed class TranslationControllerTests
         var payload = Assert.IsType<Dictionary<string, string>>(ok.Value);
         Assert.Equal("fr:Hello world", payload["key-1"]);
         Assert.Single(fakeClient.Calls);
+        Assert.Empty(fakeClient.BulkCalls);
         Assert.Equal("Hello world", fakeClient.Calls[0].Text);
         Assert.Equal("en", fakeClient.Calls[0].Source);
         Assert.Equal("fr", fakeClient.Calls[0].Target);
@@ -124,9 +125,10 @@ public sealed class TranslationControllerTests
         Assert.Equal("tx:Hello world", payload["key-1"]);
         Assert.Equal("tx:Sample text", payload["key-2"]);
         Assert.Equal(2, fakeClient.Calls.Count);
+        Assert.Empty(fakeClient.BulkCalls);
     }
 
-    private static TranslationController CreateController(
+    private static TranslationControllerV1 CreateController(
         FakeLibreTranslateClient? fakeClient = null
     )
     {
@@ -136,7 +138,7 @@ public sealed class TranslationControllerTests
             new TranslationOptions { SourceLanguage = "en", AllowedTargets = ["fr"] }
         );
 
-        return new TranslationController(options, fakeClient);
+        return new TranslationControllerV1(options, fakeClient);
     }
 
     private static string? ReadErrorMessage(BadRequestObjectResult badRequest)
@@ -155,6 +157,7 @@ public sealed class TranslationControllerTests
         : ILibreTranslateClient
     {
         public List<TranslationCall> Calls { get; } = [];
+        public List<BulkTranslationCall> BulkCalls { get; } = [];
 
         public Task<string> TranslateAsync(
             string text,
@@ -166,7 +169,24 @@ public sealed class TranslationControllerTests
             Calls.Add(new TranslationCall(text, source, target));
             return Task.FromResult(translate(text));
         }
+
+        public Task<IReadOnlyList<string>> TranslateManyAsync(
+            IReadOnlyList<string> texts,
+            string source,
+            string target,
+            CancellationToken cancellationToken
+        )
+        {
+            BulkCalls.Add(new BulkTranslationCall(texts.ToList(), source, target));
+            return Task.FromResult<IReadOnlyList<string>>(texts.Select(translate).ToList());
+        }
     }
 
     private sealed record TranslationCall(string Text, string Source, string Target);
+
+    private sealed record BulkTranslationCall(
+        IReadOnlyList<string> Texts,
+        string Source,
+        string Target
+    );
 }

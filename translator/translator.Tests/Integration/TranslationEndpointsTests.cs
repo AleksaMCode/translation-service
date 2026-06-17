@@ -17,7 +17,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
-        var response = await client.PostAsJsonAsync("/translate", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Target language 'de' is not allowed.", await ReadErrorMessage(response));
@@ -33,7 +33,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
-        var response = await client.PostAsJsonAsync("/translate", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate", request);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
@@ -45,6 +45,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
     public async Task TranslateBulk_ReturnsOk_WithAllTranslatedItems()
     {
         var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
         var request = new
         {
             target = "fr",
@@ -55,13 +56,41 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             },
         };
 
-        var response = await client.PostAsJsonAsync("/translate-bulk", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate-bulk", request);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         Assert.NotNull(payload);
         Assert.Equal("fr:Hello world", payload["key-1"]);
         Assert.Equal("fr:Sample text", payload["key-2"]);
+        Assert.Equal(2, factory.ClientSpy.SingleCalls);
+        Assert.Equal(0, factory.ClientSpy.BulkCalls);
+    }
+
+    [Fact]
+    public async Task TranslateBulk_V2_UsesSingleBulkCall()
+    {
+        var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
+        var request = new
+        {
+            target = "fr",
+            data = new Dictionary<string, string>
+            {
+                ["key-1"] = "Hello world",
+                ["key-2"] = "Sample text",
+            },
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v2/translate-bulk", request);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(payload);
+        Assert.Equal("fr:Hello world", payload["key-1"]);
+        Assert.Equal("fr:Sample text", payload["key-2"]);
+        Assert.Equal(0, factory.ClientSpy.SingleCalls);
+        Assert.Equal(1, factory.ClientSpy.BulkCalls);
     }
 
     private static async Task<string?> ReadErrorMessage(HttpResponseMessage response)

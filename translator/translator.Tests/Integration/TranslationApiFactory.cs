@@ -8,22 +8,50 @@ namespace translator.Tests.Integration;
 
 public sealed class TranslationApiFactory : WebApplicationFactory<Program>
 {
+    internal FakeLibreTranslateClient ClientSpy { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ILibreTranslateClient>();
-            services.AddSingleton<ILibreTranslateClient>(new FakeLibreTranslateClient());
+            services.AddSingleton<ILibreTranslateClient>(ClientSpy);
         });
     }
 
-    private sealed class FakeLibreTranslateClient : ILibreTranslateClient
+    internal sealed class FakeLibreTranslateClient : ILibreTranslateClient
     {
+        public int SingleCalls { get; private set; }
+        public int BulkCalls { get; private set; }
+
         public Task<string> TranslateAsync(
             string text,
             string source,
             string target,
             CancellationToken cancellationToken
-        ) => Task.FromResult($"{target}:{text}");
+        )
+        {
+            SingleCalls++;
+            return Task.FromResult($"{target}:{text}");
+        }
+
+        public Task<IReadOnlyList<string>> TranslateManyAsync(
+            IReadOnlyList<string> texts,
+            string source,
+            string target,
+            CancellationToken cancellationToken
+        )
+        {
+            BulkCalls++;
+            return Task.FromResult<IReadOnlyList<string>>(
+                texts.Select(text => $"{target}:{text}").ToList()
+            );
+        }
+
+        public void Reset()
+        {
+            SingleCalls = 0;
+            BulkCalls = 0;
+        }
     }
 }

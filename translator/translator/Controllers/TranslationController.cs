@@ -10,24 +10,26 @@ namespace translator.Controllers;
 [Route("")]
 public sealed class TranslationController(
     IOptions<TranslationOptions> translationOptions,
-    ILibreTranslateClient libreTranslateClient) : ControllerBase
+    ILibreTranslateClient libreTranslateClient
+) : ControllerBase
 {
     [HttpPost("translate")]
     public Task<ActionResult<Dictionary<string, string>>> Translate(
         [FromBody] TranslateRequest request,
-        CancellationToken cancellationToken) =>
-        TranslateInternal(request, isBulkRequest: false, cancellationToken);
+        CancellationToken cancellationToken
+    ) => TranslateInternal(request, isBulkRequest: false, cancellationToken);
 
     [HttpPost("translate-bulk")]
     public Task<ActionResult<Dictionary<string, string>>> TranslateBulk(
         [FromBody] TranslateRequest request,
-        CancellationToken cancellationToken) =>
-        TranslateInternal(request, isBulkRequest: true, cancellationToken);
+        CancellationToken cancellationToken
+    ) => TranslateInternal(request, isBulkRequest: true, cancellationToken);
 
     private async Task<ActionResult<Dictionary<string, string>>> TranslateInternal(
         TranslateRequest request,
         bool isBulkRequest,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (string.IsNullOrWhiteSpace(request.Target))
         {
@@ -36,10 +38,9 @@ public sealed class TranslationController(
 
         if (!IsAllowedTarget(request.Target))
         {
-            return BadRequest(new
-            {
-                error = $"Target language '{request.Target}' is not allowed."
-            });
+            return BadRequest(
+                new { error = $"Target language '{request.Target}' is not allowed." }
+            );
         }
 
         if (request.Data.Count == 0)
@@ -49,10 +50,9 @@ public sealed class TranslationController(
 
         if (!isBulkRequest && request.Data.Count != 1)
         {
-            return BadRequest(new
-            {
-                error = "The /translate endpoint accepts exactly one key/value pair."
-            });
+            return BadRequest(
+                new { error = "The /translate endpoint accepts exactly one key/value pair." }
+            );
         }
 
         var results = new Dictionary<string, string>(request.Data.Count);
@@ -62,17 +62,17 @@ public sealed class TranslationController(
         {
             if (string.IsNullOrWhiteSpace(entry.Value))
             {
-                return BadRequest(new
-                {
-                    error = $"Value for key '{entry.Key}' must not be empty."
-                });
+                return BadRequest(
+                    new { error = $"Value for key '{entry.Key}' must not be empty." }
+                );
             }
 
             var translatedValue = await libreTranslateClient.TranslateAsync(
                 entry.Value,
                 source,
                 request.Target,
-                cancellationToken);
+                cancellationToken
+            );
 
             results[entry.Key] = translatedValue;
         }
@@ -83,6 +83,8 @@ public sealed class TranslationController(
     private bool IsAllowedTarget(string target)
     {
         var allowedTargets = translationOptions.Value.AllowedTargets;
-        return allowedTargets.Any(code => string.Equals(code, target, StringComparison.OrdinalIgnoreCase));
+        return allowedTargets.Any(code =>
+            string.Equals(code, target, StringComparison.OrdinalIgnoreCase)
+        );
     }
 }

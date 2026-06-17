@@ -5,25 +5,25 @@ using translator.Configuration;
 using translator.Contracts;
 using translator.Services;
 
-namespace translator.Controllers.V2;
+namespace translator.Controllers.V1;
 
 [ApiController]
-[ApiVersion("2.0")]
-[Route("api/v2")]
-public sealed class TranslationControllerV2(
+[ApiVersion("1.0")]
+[Route("api/v1")]
+public sealed class TranslationControllerV1(
     IOptions<TranslationOptions> translationOptions,
     ILibreTranslateClient libreTranslateClient
 ) : ControllerBase
 {
     [HttpPost("translate")]
-    [MapToApiVersion("2.0")]
+    [MapToApiVersion("1.0")]
     public Task<ActionResult<Dictionary<string, string>>> Translate(
         [FromBody] TranslateRequest request,
         CancellationToken cancellationToken
     ) => TranslateInternal(request, isBulkRequest: false, cancellationToken);
 
     [HttpPost("translate-bulk")]
-    [MapToApiVersion("2.0")]
+    [MapToApiVersion("1.0")]
     public Task<ActionResult<Dictionary<string, string>>> TranslateBulk(
         [FromBody] TranslateRequest request,
         CancellationToken cancellationToken
@@ -59,6 +59,9 @@ public sealed class TranslationControllerV2(
             );
         }
 
+        var results = new Dictionary<string, string>(request.Data.Count);
+        var source = translationOptions.Value.SourceLanguage;
+
         foreach (var entry in request.Data)
         {
             if (string.IsNullOrWhiteSpace(entry.Value))
@@ -67,38 +70,18 @@ public sealed class TranslationControllerV2(
                     new { error = $"Value for key '{entry.Key}' must not be empty." }
                 );
             }
-        }
 
-        var source = translationOptions.Value.SourceLanguage;
-        if (isBulkRequest)
-        {
-            var entries = request.Data.ToList();
-            var values = entries.Select(entry => entry.Value).ToList();
-            var translatedValues = await libreTranslateClient.TranslateManyAsync(
-                values,
+            var translatedValue = await libreTranslateClient.TranslateAsync(
+                entry.Value,
                 source,
                 request.Target,
                 cancellationToken
             );
 
-            var bulkResults = new Dictionary<string, string>(entries.Count);
-            for (var i = 0; i < entries.Count; i++)
-            {
-                bulkResults[entries[i].Key] = translatedValues[i];
-            }
-
-            return Ok(bulkResults);
+            results[entry.Key] = translatedValue;
         }
 
-        var singleEntry = request.Data.Single();
-        var translatedValue = await libreTranslateClient.TranslateAsync(
-            singleEntry.Value,
-            source,
-            request.Target,
-            cancellationToken
-        );
-
-        return Ok(new Dictionary<string, string> { [singleEntry.Key] = translatedValue });
+        return Ok(results);
     }
 
     private bool IsAllowedTarget(string target)

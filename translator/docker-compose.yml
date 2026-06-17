@@ -1,0 +1,25 @@
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    environment:
+      - LT_LOAD_ONLY=en,fr
+      - LT_UPDATE_MODELS=false
+      - LT_HOST=0.0.0.0
+      - LT_PORT=5000
+    ports:
+      - "5000:5000"
+
+  translator-service:
+    build:
+      context: ./translator
+      dockerfile: Dockerfile
+    container_name: translator-service
+    environment:
+      - Translation__LibreTranslateUrl=http://libretranslate:5000
+      - Translation__SourceLanguage=en
+      - Translation__AllowedTargets__0=fr
+    depends_on:
+      - libretranslate
+    ports:
+      - "8080:8080"

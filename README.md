@@ -4,8 +4,11 @@
 
 # Translation Service
 
-[![Python 3.13.7](https://img.shields.io/badge/.NET-10.0.301-purple.svg)](https://www.python.org/downloads/release/python-3137/)
-[![Code style: CSharpier ](https://img.shields.io/badge/code%20style-CSharpier-32566c.svg)](https://github.com/belav/csharpier)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![.NET 10.0.301](https://img.shields.io/badge/.NET-10.0.301-purple.svg)](https://www.python.org/downloads/release/python-3137/)
+[![Code style: CSharpier](https://img.shields.io/badge/code%20style-CSharpier-32566c.svg)](https://github.com/belav/csharpier)
+![Tests](https://github.com/AleksaMCode/translation-service/actions/workflows/tests.yml/badge.svg?branch=main)
+![](https://img.shields.io/github/v/release/AleksaMCode/translation-service)
 
 A lightweight C# translation microservice powered by [neural machine translation](https://en.wikipedia.org/wiki/Neural_machine_translation) (NMT) via [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate). The service has two endpoints, one for a single-key value translation (`POST /translate`) and one for batch translation (`POST /translate-bulk`).
 

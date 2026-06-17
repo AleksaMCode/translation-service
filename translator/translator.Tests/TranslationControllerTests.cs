@@ -16,7 +16,7 @@ public sealed class TranslationControllerTests
         var request = new TranslateRequest
         {
             Target = "",
-            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" }
+            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
         var result = await controller.Translate(request, CancellationToken.None);
@@ -32,7 +32,7 @@ public sealed class TranslationControllerTests
         var request = new TranslateRequest
         {
             Target = "de",
-            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" }
+            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
         var result = await controller.Translate(request, CancellationToken.None);
@@ -51,8 +51,8 @@ public sealed class TranslationControllerTests
             Data = new Dictionary<string, string>
             {
                 ["key-1"] = "Hello world",
-                ["key-2"] = "Sample text"
-            }
+                ["key-2"] = "Sample text",
+            },
         };
 
         var result = await controller.Translate(request, CancellationToken.None);
@@ -71,7 +71,7 @@ public sealed class TranslationControllerTests
         var request = new TranslateRequest
         {
             Target = "fr",
-            Data = new Dictionary<string, string> { ["key-1"] = "" }
+            Data = new Dictionary<string, string> { ["key-1"] = "" },
         };
 
         var result = await controller.TranslateBulk(request, CancellationToken.None);
@@ -88,7 +88,7 @@ public sealed class TranslationControllerTests
         var request = new TranslateRequest
         {
             Target = "fr",
-            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" }
+            Data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
         var result = await controller.Translate(request, CancellationToken.None);
@@ -113,8 +113,8 @@ public sealed class TranslationControllerTests
             Data = new Dictionary<string, string>
             {
                 ["key-1"] = "Hello world",
-                ["key-2"] = "Sample text"
-            }
+                ["key-2"] = "Sample text",
+            },
         };
 
         var result = await controller.TranslateBulk(request, CancellationToken.None);
@@ -126,16 +126,14 @@ public sealed class TranslationControllerTests
         Assert.Equal(2, fakeClient.Calls.Count);
     }
 
-    private static TranslationController CreateController(FakeLibreTranslateClient? fakeClient = null)
+    private static TranslationController CreateController(
+        FakeLibreTranslateClient? fakeClient = null
+    )
     {
         fakeClient ??= new FakeLibreTranslateClient(value => value);
 
         var options = Options.Create(
-            new TranslationOptions
-            {
-                SourceLanguage = "en",
-                AllowedTargets = ["fr"]
-            }
+            new TranslationOptions { SourceLanguage = "en", AllowedTargets = ["fr"] }
         );
 
         return new TranslationController(options, fakeClient);
@@ -153,7 +151,8 @@ public sealed class TranslationControllerTests
         return property?.GetValue(value)?.ToString();
     }
 
-    private sealed class FakeLibreTranslateClient(Func<string, string> translate) : ILibreTranslateClient
+    private sealed class FakeLibreTranslateClient(Func<string, string> translate)
+        : ILibreTranslateClient
     {
         public List<TranslationCall> Calls { get; } = [];
 

@@ -21,8 +21,10 @@ public sealed class TranslationApiFactory : WebApplicationFactory<Program>
 
     internal sealed class FakeLibreTranslateClient : ILibreTranslateClient
     {
+        private readonly object syncRoot = new();
         public int SingleCalls { get; private set; }
         public int BulkCalls { get; private set; }
+        public List<int> BulkBatchSizes { get; } = [];
 
         public Task<string> TranslateAsync(
             string text,
@@ -31,7 +33,10 @@ public sealed class TranslationApiFactory : WebApplicationFactory<Program>
             CancellationToken cancellationToken
         )
         {
-            SingleCalls++;
+            lock (syncRoot)
+            {
+                SingleCalls++;
+            }
             return Task.FromResult($"{target}:{text}");
         }
 
@@ -42,7 +47,11 @@ public sealed class TranslationApiFactory : WebApplicationFactory<Program>
             CancellationToken cancellationToken
         )
         {
-            BulkCalls++;
+            lock (syncRoot)
+            {
+                BulkCalls++;
+                BulkBatchSizes.Add(texts.Count);
+            }
             return Task.FromResult<IReadOnlyList<string>>(
                 texts.Select(text => $"{target}:{text}").ToList()
             );
@@ -50,8 +59,12 @@ public sealed class TranslationApiFactory : WebApplicationFactory<Program>
 
         public void Reset()
         {
-            SingleCalls = 0;
-            BulkCalls = 0;
+            lock (syncRoot)
+            {
+                SingleCalls = 0;
+                BulkCalls = 0;
+                BulkBatchSizes.Clear();
+            }
         }
     }
 }

@@ -93,6 +93,30 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
         Assert.Equal(1, factory.ClientSpy.BulkCalls);
     }
 
+    [Fact]
+    public async Task TranslateBulk_V3_SplitsIntoParallelBatches_AndPreservesKeyMapping()
+    {
+        var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
+        var data = Enumerable
+            .Range(1, 1000)
+            .ToDictionary(index => $"key-{index}", index => $"Sample text {index}");
+        var request = new { target = "fr", data };
+
+        var response = await client.PostAsJsonAsync("/api/v3/translate-bulk", request);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(payload);
+        Assert.Equal(1000, payload.Count);
+        Assert.Equal("fr:Sample text 1", payload["key-1"]);
+        Assert.Equal("fr:Sample text 500", payload["key-500"]);
+        Assert.Equal("fr:Sample text 1000", payload["key-1000"]);
+        Assert.Equal(0, factory.ClientSpy.SingleCalls);
+        Assert.Equal(4, factory.ClientSpy.BulkCalls);
+        Assert.Equal([250, 250, 250, 250], factory.ClientSpy.BulkBatchSizes.Order().ToList());
+    }
+
     private static async Task<string?> ReadErrorMessage(HttpResponseMessage response)
     {
         var document = await response.Content.ReadFromJsonAsync<JsonDocument>();

@@ -17,7 +17,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
-        var response = await client.PostAsJsonAsync("/translate", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Target language 'de' is not allowed.", await ReadErrorMessage(response));
@@ -33,7 +33,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             data = new Dictionary<string, string> { ["key-1"] = "Hello world" },
         };
 
-        var response = await client.PostAsJsonAsync("/translate", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate", request);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
@@ -45,6 +45,7 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
     public async Task TranslateBulk_ReturnsOk_WithAllTranslatedItems()
     {
         var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
         var request = new
         {
             target = "fr",
@@ -55,13 +56,65 @@ public sealed class TranslationEndpointsTests(TranslationApiFactory factory)
             },
         };
 
-        var response = await client.PostAsJsonAsync("/translate-bulk", request);
+        var response = await client.PostAsJsonAsync("/api/v1/translate-bulk", request);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         Assert.NotNull(payload);
         Assert.Equal("fr:Hello world", payload["key-1"]);
         Assert.Equal("fr:Sample text", payload["key-2"]);
+        Assert.Equal(2, factory.ClientSpy.SingleCalls);
+        Assert.Equal(0, factory.ClientSpy.BulkCalls);
+    }
+
+    [Fact]
+    public async Task TranslateBulk_V2_UsesSingleBulkCall()
+    {
+        var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
+        var request = new
+        {
+            target = "fr",
+            data = new Dictionary<string, string>
+            {
+                ["key-1"] = "Hello world",
+                ["key-2"] = "Sample text",
+            },
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v2/translate-bulk", request);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(payload);
+        Assert.Equal("fr:Hello world", payload["key-1"]);
+        Assert.Equal("fr:Sample text", payload["key-2"]);
+        Assert.Equal(0, factory.ClientSpy.SingleCalls);
+        Assert.Equal(1, factory.ClientSpy.BulkCalls);
+    }
+
+    [Fact]
+    public async Task TranslateBulk_V3_SplitsIntoParallelBatches_AndPreservesKeyMapping()
+    {
+        var client = factory.CreateClient();
+        factory.ClientSpy.Reset();
+        var data = Enumerable
+            .Range(1, 1000)
+            .ToDictionary(index => $"key-{index}", index => $"Sample text {index}");
+        var request = new { target = "fr", data };
+
+        var response = await client.PostAsJsonAsync("/api/v3/translate-bulk", request);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(payload);
+        Assert.Equal(1000, payload.Count);
+        Assert.Equal("fr:Sample text 1", payload["key-1"]);
+        Assert.Equal("fr:Sample text 500", payload["key-500"]);
+        Assert.Equal("fr:Sample text 1000", payload["key-1000"]);
+        Assert.Equal(0, factory.ClientSpy.SingleCalls);
+        Assert.Equal(4, factory.ClientSpy.BulkCalls);
+        Assert.Equal([250, 250, 250, 250], factory.ClientSpy.BulkBatchSizes.Order().ToList());
     }
 
     private static async Task<string?> ReadErrorMessage(HttpResponseMessage response)

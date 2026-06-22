@@ -8,22 +8,63 @@ namespace translator.Tests.Integration;
 
 public sealed class TranslationApiFactory : WebApplicationFactory<Program>
 {
+    internal FakeLibreTranslateClient ClientSpy { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ILibreTranslateClient>();
-            services.AddSingleton<ILibreTranslateClient>(new FakeLibreTranslateClient());
+            services.AddSingleton<ILibreTranslateClient>(ClientSpy);
         });
     }
 
-    private sealed class FakeLibreTranslateClient : ILibreTranslateClient
+    internal sealed class FakeLibreTranslateClient : ILibreTranslateClient
     {
+        private readonly object syncRoot = new();
+        public int SingleCalls { get; private set; }
+        public int BulkCalls { get; private set; }
+        public List<int> BulkBatchSizes { get; } = [];
+
         public Task<string> TranslateAsync(
             string text,
             string source,
             string target,
             CancellationToken cancellationToken
-        ) => Task.FromResult($"{target}:{text}");
+        )
+        {
+            lock (syncRoot)
+            {
+                SingleCalls++;
+            }
+            return Task.FromResult($"{target}:{text}");
+        }
+
+        public Task<IReadOnlyList<string>> TranslateManyAsync(
+            IReadOnlyList<string> texts,
+            string source,
+            string target,
+            CancellationToken cancellationToken
+        )
+        {
+            lock (syncRoot)
+            {
+                BulkCalls++;
+                BulkBatchSizes.Add(texts.Count);
+            }
+            return Task.FromResult<IReadOnlyList<string>>(
+                texts.Select(text => $"{target}:{text}").ToList()
+            );
+        }
+
+        public void Reset()
+        {
+            lock (syncRoot)
+            {
+                SingleCalls = 0;
+                BulkCalls = 0;
+                BulkBatchSizes.Clear();
+            }
+        }
     }
 }

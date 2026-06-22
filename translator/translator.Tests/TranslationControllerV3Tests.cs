@@ -21,8 +21,8 @@ public sealed class TranslationControllerV3Tests
             {
                 ["key-1"] = "Hello world",
                 ["key-2"] = "Sample text",
-                ["key-3"] = "Another value"
-            }
+                ["key-3"] = "Another value",
+            },
         };
 
         var result = await controller.TranslateBulk(request, CancellationToken.None);
@@ -46,7 +46,7 @@ public sealed class TranslationControllerV3Tests
             Target = "fr",
             Data = Enumerable
                 .Range(1, 251)
-                .ToDictionary(index => $"key-{index}", index => $"value-{index}")
+                .ToDictionary(index => $"key-{index}", index => $"value-{index}"),
         };
 
         var result = await controller.TranslateBulk(request, CancellationToken.None);
@@ -68,7 +68,7 @@ public sealed class TranslationControllerV3Tests
             {
                 SourceLanguage = "en",
                 AllowedTargets = ["fr"],
-                BulkBatchSize = bulkBatchSize
+                BulkBatchSize = bulkBatchSize,
             }
         );
 
